@@ -1,3 +1,48 @@
+// Windows JVM JNIEnv 捕获器 - 合并优化版
+// 保存所有捕获到的JNIEnv，按线程ID索引
+var g_jniEnvs = new Map();
+
+// 保存JVM相关的关键函数地址
+var g_jvmFunctions = {};
+
+// 要Hook的所有JVM函数列表（合并了之前的所有函数）
+var JVM_FUNCTIONS_TO_HOOK = [
+    // 核心JVM函数
+    "JVM_DefineClass",
+    "JVM_DefineClassWithSource",
+    "JVM_FindClass",
+    "JVM_GetClassMethods",
+    "JVM_RegisterNatives",
+    "JVM_GetClassDeclaredMethods",
+    "JVM_GetArrayElement",
+    "JVM_GetArrayLength",
+    "JVM_CurrentTimeMillis",
+    // 其他常用JVM函数
+    "JVM_AllocateNewArray",
+    "JVM_AllocateNewObject",
+    "JVM_GetClassCPEntriesCount",
+    "JVM_GetClassFieldsCount",
+    "JVM_GetClassMethodsCount",
+    "JVM_GetClassVersion",
+    "JVM_GetClassName",
+    "JVM_GetClassSignature",
+    "JVM_IsInterface",
+    "JVM_IsPrimitiveClass",
+    "JVM_GetClassLoader",
+    "JVM_GetProtectionDomain",
+    "JVM_FreeMemory"
+];
+
+// 需要Hook但可能不直接是JVM_前缀的函数
+var EXTRA_PATTERNS = [
+    "DefineClass",
+    "FindClass",
+    "RegisterNatives",
+    "GetClassMethods"
+];
+
+var testLogs = false;
+
 // 主函数：Hook所有JVM函数
 function hookAllJVMFunctions() {
     return new Promise((resolve) => {
@@ -132,14 +177,12 @@ function hookFoundFunctions(functionsToHook) {
                                         timestamp: Date.now()
                                     });
 
-                                    setTimeout((function (){
-                                        console.log(`\n[!!!] Captured JNIEnv from ${functionName} for thread ${tid}:`, potentialEnv);
-
-                                        verifyJNIEnv(potentialEnv, tid)
-                                    }),300)
+                                    console.log(`\n[!!!] Captured JNIEnv from ${functionName} for thread ${tid}:`, potentialEnv);
+                                    verifyJNIEnv(potentialEnv, tid);
                                 }
                             }
                         }
+
                         if(testLogs) logFunctionCall(functionName, args, tid);  // 使用闭包变量
 
                     } catch (e) {
@@ -363,9 +406,47 @@ function callJNIFindClass(env, className) {
     }
 }
 
-function hookJNIFunctions(){
+// 主函数
+function main() {
+    console.log("\n" + "=".repeat(60));
+    console.log("Windows JVM JNIEnv Capture - Merged Version");
+    console.log("=".repeat(60) + "\n");
 
-    //todo
+    // Hook所有JVM函数
+    hookAllJVMFunctions().then(() => {
+        console.log("\n[+] All hooks installed successfully!");
 
-    console.log("[+] JNI Functions Hooked")
+        // 定期显示状态
+        var interval = setInterval(function() {
+            if (g_jniEnvs.size > 0 && testLogs) {
+                console.log("\n" + "-".repeat(40));
+                console.log(`[Status] Captured ${g_jniEnvs.size} JNIEnv(s) for ${g_jniEnvs.size} thread(s)`);
+
+                if (g_jniEnvs.size <= 5) {  // 如果线程不多，显示详情
+                    getAllJNIEnvs();
+                }
+            }
+        }, 10000);
+
+        // 30分钟后停止
+        setTimeout(() => clearInterval(interval), 1800000);
+    });
+
+    // 提供帮助信息
+    console.log("\n[!] Available API functions:");
+    console.log("    getJNIEnvForCurrentThread() - Get JNIEnv for current thread");
+    console.log("    getAllJNIEnvs() - Show all captured JNIEnvs");
+    console.log("    getAllJVMFunctions() - List all hooked JVM functions");
+    console.log("    getJNIFunctionByOffset(env, offset) - Get JNI function by offset");
+    console.log("    callJNIFindClass(env, className) - Example: Call FindClass");
+
+    globalThis.getJNIEnv = getJNIEnvForCurrentThread;
+    globalThis.getAllEnvs = getAllJNIEnvs;
+
+    console.log("\n[✓] JNIEnvCapture API exposed globally");
+
 }
+
+// 启动
+setTimeout(main, 1000);
+

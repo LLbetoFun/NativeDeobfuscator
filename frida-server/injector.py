@@ -36,7 +36,7 @@ class JarInjector:
         self.running = False
 
     def load_scripts_from_dir(self, script_dir: str = "./script") -> List[str]:
-        """从目录加载所有js文件，将agent.js放到最后"""
+        """从目录加载所有js文件"""
         if not os.path.exists(script_dir):
             print(f"[-] 脚本目录不存在: {script_dir}")
             return []
@@ -46,27 +46,8 @@ class JarInjector:
             print(f"[-] 脚本目录为空: {script_dir}")
             return []
 
-        # 分离出 agent.js 和其他文件
-        other_files = []
-        agent_file = None
-
-        for js_file in js_files:
-            if os.path.basename(js_file) == "agent.js":
-                agent_file = js_file
-            else:
-                other_files.append(js_file)
-
-        # 排序其他文件（按文件名）
-        other_files.sort()
-
-        # 构建最终的文件列表：其他文件先，agent.js最后
-        ordered_files = other_files
-        if agent_file:
-            ordered_files.append(agent_file)
-            print("[*] agent.js 将被放在最后加载")
-
         scripts = []
-        for js_file in ordered_files:
+        for js_file in js_files:
             try:
                 with open(js_file, 'r', encoding='utf-8') as f:
                     content = f.read()
@@ -224,7 +205,7 @@ class JarInjector:
             pid = self.spawn_jar(jar_path, java_home, jvm_args)
 
             # 3. 注入脚本（进程仍在挂起状态）
-            success = self.inject_scripts(pid, ["".join(scripts)])
+            success = self.inject_scripts(pid, scripts)
 
             # 4. 恢复进程执行
             self.resume()
@@ -353,7 +334,7 @@ def no_wait_example():
 
     # wait=False表示不等待，立即返回
     injector.run(
-        jar_path="example.jar",
+        jar_path="minecraft_server.jar",
         wait=False
     )
 
