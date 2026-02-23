@@ -1,0 +1,5 @@
+{
+  "devDependencies": {
+    "frida-compile": "^19.0.4"
+  }
+}
